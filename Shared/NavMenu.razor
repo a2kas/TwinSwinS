@@ -1,0 +1,54 @@
+﻿<nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow">
+    <div class="container">
+        <!-- Logo Section -->
+        <a class="navbar-brand" href="">blazornav</a>
+
+        <!-- Navbar Toggle Button -->
+        <button class="navbar-toggler" type="button" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Navigation Items -->
+        <div class="@NavMenuCssClass">
+            <ul class="navbar-nav ms-auto">
+                <!-- Use 'ms-auto' to push items to the right -->
+                <li class="nav-item">
+                    <NavLink class="nav-link text-dark" href="" Match="NavLinkMatch.All">
+                        <span class="oi oi-home" aria-hidden="true"></span> Home
+                    </NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="#" @onclick="OpenConnectModal">
+                        <span class="oi oi-plus" aria-hidden="true"></span> Connect
+                    </NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link text-dark" href="lobby">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Lobby
+                    </NavLink>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+@code {
+
+    [Parameter] public EventCallback OnConnectClick { get; set; }
+
+    bool collapseNavMenu = true;
+
+    string baseMenuClass = "navbar-collapse d-sm-inline-flex";
+
+    string NavMenuCssClass => baseMenuClass + (collapseNavMenu ? " collapse" : "");
+
+    void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    void OpenConnectModal()
+    {
+        OnConnectClick.InvokeAsync();
+    }
+}
