@@ -2,10 +2,12 @@
 
 <PageTitle>Weather forecast</PageTitle>
 
+@using Microsoft.AspNetCore.SignalR.Client
 @using TwinsWins.Data
 @inject WeatherForecastService ForecastService
+@inject NavigationManager Navigation
 
-<button class="btn btn-primary">New Game</button>
+<button class="btn btn-primary" @onclick="StartNewGame">New Game</button>
 
 @if (forecasts == null)
 {
@@ -37,10 +39,38 @@ else
 }
 
 @code {
-    private WeatherForecast[]? forecasts;
+    private List<WeatherForecast>? forecasts;
+    private HubConnection? hubConnection;
 
     protected override async Task OnInitializedAsync()
     {
-        forecasts = await ForecastService.GetForecastAsync(DateTime.Now);
+        forecasts = new List<WeatherForecast>(); 
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/signalrhub"))
+            .Build();
+
+        hubConnection.On<WeatherForecast>("ReceiveNewGame", (newGame) =>
+        {
+            forecasts.Add(newGame);
+            InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
     }
-}
+
+    private async Task StartNewGame()
+    {
+        if (hubConnection != null)
+        {
+            await hubConnection.SendAsync("NewGame");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection != null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+   }

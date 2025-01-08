@@ -1,6 +1,5 @@
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
 using TwinsWins.Data;
+using TwinsWins.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,11 +10,9 @@ builder.Services.AddSingleton<WeatherForecastService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -26,6 +23,7 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.MapBlazorHub();
+app.MapHub<SignalRHub>("/signalrhub");
 app.MapFallbackToPage("/_Host");
 
 app.Run();
