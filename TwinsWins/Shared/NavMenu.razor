@@ -1,40 +1,53 @@
 ﻿<nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow">
     <div class="container">
         <!-- Logo Section -->
-        <a class="navbar-brand" href="">TwinSwinS</a>
+        <a class="navbar-brand" href="javascript:void(0);">TwinSwinS</a>
 
         <!-- Navbar Toggle Button -->
-        <button class="navbar-toggler" type="button" @onclick="ToggleNavMenu">
+        <button class="navbar-toggler" type="button" @onclick="ToggleNavMenu" aria-controls="navbarSupportedContent" aria-expanded="@(!collapseNavMenu).ToString().ToLower()" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
 
         <!-- Navigation Items -->
-        <div class="@NavMenuCssClass">
+        <div class="@NavMenuCssClass" id="navbarSupportedContent">
             <ul class="navbar-nav ms-auto">
-                <!-- Use 'ms-auto' to push items to the right -->
+                <!-- Home Link -->
                 <li class="nav-item">
-                    <NavLink class="nav-link text-dark" href="" Match="NavLinkMatch.All">
-                        <span class="oi oi-home" aria-hidden="true"></span> Home
+                    <NavLink class="nav-link text-dark" href="/" Match="NavLinkMatch.All">
+                        <span class="oi oi-home"></span> Home
                     </NavLink>
                 </li>
+                
+                <!-- Connect Button -->
                 <li class="nav-item">
-                    <NavLink class="nav-link" href="#" @onclick="OpenConnectModal">
-                        <span class="oi oi-plus" aria-hidden="true"></span> Connect
+                    <NavLink class="nav-link text-dark" href="javascript:void(0);" @onclick="OpenConnectModal">
+                        <span class="oi oi-link-intact"></span> Connect
                     </NavLink>
                 </li>
+                
+                <!-- Account Dropdown -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Account
+                    <a class="nav-link text-dark dropdown-toggle" href="javascript:void(0);" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="oi oi-person"></span> Account
                     </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#">History</a></li>
-                        <li><a class="dropdown-item" href="#">Affiliate</a></li>
-                        <li><a class="dropdown-item" href="#">Logout</a></li>
+                    <ul class="dropdown-menu" style="min-width: 15rem;">
+                        <li class="px-3 py-2">Balance: @balance</li>
+                        <li>
+                            <div class="d-flex align-items-center px-3 py-2">
+                                <input type="text" class="form-control me-2" placeholder="Code" @bind="redeemAmount" />
+                                <button class="btn btn-primary" @onclick="Redeem">Redeem</button>
+                            </div>
+                        </li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">History</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">Affiliate</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);">Logout</a></li>
                     </ul>
                 </li>
+                
+                <!-- Lobby Link -->
                 <li class="nav-item">
-                    <NavLink class="nav-link text-dark" href="lobby">
-                        <span class="oi oi-list-rich" aria-hidden="true"></span> Lobby
+                    <NavLink class="nav-link text-dark" href="/lobby">
+                        <span class="oi oi-plus"></span> Lobby
                     </NavLink>
                 </li>
             </ul>
@@ -45,6 +58,10 @@
 @code {
 
     [Parameter] public EventCallback OnConnectClick { get; set; }
+
+    string redeemAmount { get; set; } = "";
+
+    int balance { get; set; } = 0;
 
     bool collapseNavMenu = true;
 
@@ -60,5 +77,19 @@
     void OpenConnectModal()
     {
         OnConnectClick.InvokeAsync();
+    }
+
+    void Redeem()
+    {
+        // Handle redeem logic here
+        if (!string.IsNullOrWhiteSpace(redeemAmount) && int.TryParse(redeemAmount, out int amount) && amount > 0)
+        {
+            balance += amount;
+            Console.WriteLine($"Redeemed amount: {amount}. New balance: {balance}");
+        }
+        else
+        {
+            Console.WriteLine("Please enter a valid amount to redeem.");
+        }
     }
 }
