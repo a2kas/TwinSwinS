@@ -1,7 +1,7 @@
 ﻿<nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow">
     <div class="container">
         <!-- Logo Section -->
-        <a class="navbar-brand" href="">blazornav</a>
+        <a class="navbar-brand" href="">TwinSwinS</a>
 
         <!-- Navbar Toggle Button -->
         <button class="navbar-toggler" type="button" @onclick="ToggleNavMenu">
@@ -21,6 +21,16 @@
                     <NavLink class="nav-link" href="#" @onclick="OpenConnectModal">
                         <span class="oi oi-plus" aria-hidden="true"></span> Connect
                     </NavLink>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Account
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#">History</a></li>
+                        <li><a class="dropdown-item" href="#">Affiliate</a></li>
+                        <li><a class="dropdown-item" href="#">Logout</a></li>
+                    </ul>
                 </li>
                 <li class="nav-item">
                     <NavLink class="nav-link text-dark" href="lobby">
