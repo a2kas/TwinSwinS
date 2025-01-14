@@ -1,0 +1,112 @@
+﻿@page "/account"
+@using TwinsWins.Data
+@using Microsoft.EntityFrameworkCore
+@inject DatabseContext DbContext
+<div>
+    <ul class="nav nav-tabs" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="account-tab" data-bs-toggle="tab" data-bs-target="#account" type="button" role="tab" aria-controls="account" aria-selected="true">Account</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-controls="history" aria-selected="false">History</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="affiliate-tab" data-bs-toggle="tab" data-bs-target="#affiliate" type="button" role="tab" aria-controls="affiliate" aria-selected="false">Affiliate</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade show active" id="account" role="tabpanel" aria-labelledby="account-tab">
+            <h6>Account Information</h6>
+            <!-- Add your account information content here -->
+        </div>
+        <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
+            <h6>History</h6>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Address</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in pagedUsers)
+                        {
+                            <tr>
+                                <td>@user.Id</td>
+                                <td>@user.Address</td>
+                                <td>@user.Created</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <nav>
+                <ul class="pagination">
+                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                        <button class="page-link" @onclick="PreviousPage">Previous</button>
+                    </li>
+                    @for (int i = 1; i <= totalPages; i++)
+                    {
+                        var pageNumber = i; // Explicitly capture the value of 'i'
+                        <li class="page-item @(currentPage == pageNumber ? "active" : "")">
+                            <button class="page-link" @onclick="() => GoToPage(pageNumber)">@pageNumber</button>
+                        </li>
+                    }
+                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                        <button class="page-link" @onclick="NextPage">Next</button>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        <div class="tab-pane fade" id="affiliate" role="tabpanel" aria-labelledby="affiliate-tab">
+            <h6>Affiliate</h6>
+            <!-- Add your affiliate content here -->
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<User> Users = new();
+    private List<User> pagedUsers = new();
+    private int currentPage = 1;
+    private int pageSize = 3;
+    private int totalPages;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Users = await DbContext.Users.ToListAsync();
+        totalPages = (int)Math.Ceiling(Users.Count / (double)pageSize);
+        LoadPage();
+    }
+
+    private void LoadPage()
+    {
+        pagedUsers = Users.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            LoadPage();
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            LoadPage();
+        }
+    }
+
+    private void GoToPage(int pageNumber)
+    {
+        currentPage = pageNumber;
+        LoadPage();
+    }
+}

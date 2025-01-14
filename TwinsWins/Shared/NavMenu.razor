@@ -25,23 +25,11 @@
                     </NavLink>
                 </li>
                 
-                <!-- Account Dropdown -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link text-dark dropdown-toggle" href="javascript:void(0);" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <!-- Accounu Link -->
+                <li class="nav-item">
+                    <NavLink class="nav-link text-dark" href="/account">
                         <span class="oi oi-person"></span> Account
-                    </a>
-                    <ul class="dropdown-menu" style="min-width: 15rem;">
-                        <li class="px-3 py-2">Balance: @balance</li>
-                        <li>
-                            <div class="d-flex align-items-center px-3 py-2">
-                                <input type="text" class="form-control me-2" placeholder="Code" @bind="redeemAmount" />
-                                <button class="btn btn-primary" @onclick="Redeem">Redeem</button>
-                            </div>
-                        </li>
-                        <li><a class="dropdown-item" href="javascript:void(0);">History</a></li>
-                        <li><a class="dropdown-item" href="javascript:void(0);">Affiliate</a></li>
-                        <li><a class="dropdown-item" href="javascript:void(0);">Logout</a></li>
-                    </ul>
+                    </NavLink>
                 </li>
                 
                 <!-- Lobby Link -->
