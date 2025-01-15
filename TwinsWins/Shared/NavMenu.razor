@@ -1,4 +1,8 @@
-﻿<nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow">
+﻿@using Microsoft.JSInterop
+@using TwinsWins.Components.Modal
+@inject IJSRuntime JSRuntime
+
+<nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow">
     <div class="container">
         <!-- Logo Section -->
         <a class="navbar-brand" href="javascript:void(0);">TwinSwinS</a>
@@ -17,20 +21,36 @@
                         <span class="oi oi-home"></span> Home
                     </NavLink>
                 </li>
-                
+
                 <!-- Connect Button -->
-                <li class="nav-item">
-                    <NavLink class="nav-link text-dark" href="javascript:void(0);" @onclick="OpenConnectModal">
-                        <span class="oi oi-link-intact"></span> Connect
-                    </NavLink>
-                </li>
-                
-                <!-- Accounu Link -->
-                <li class="nav-item">
-                    <NavLink class="nav-link text-dark" href="/account">
-                        <span class="oi oi-person"></span> Account
-                    </NavLink>
-                </li>
+                @if (!isWalletConnected)
+                {
+                    <li class="nav-item">
+                        <NavLink class="nav-link text-dark" href="javascript:void(0);" @onclick="OpenConnectModal">
+                            <span class="oi oi-link-intact"></span> Connect
+                        </NavLink>
+                    </li>
+                }
+
+                <!-- Account Link -->
+                @if (isWalletConnected)
+                {
+                    <li class="nav-item">
+                        <NavLink class="nav-link text-dark" href="/account">
+                            <span class="oi oi-person"></span> Account
+                        </NavLink>
+                    </li>
+                }
+
+                <!-- Logout Button -->
+                @if (isWalletConnected)
+                {
+                    <li class="nav-item">
+                        <NavLink class="nav-link text-dark" href="javascript:void(0);" @onclick="Logout">
+                            <span class="oi oi-account-logout"></span> Logout
+                        </NavLink>
+                    </li>
+                }
                 
                 <!-- Lobby Link -->
                 <li class="nav-item">
@@ -43,19 +63,30 @@
     </div>
 </nav>
 
+<ConnectModal @ref="connectDialog" OnWalletConnected="HandleWalletConnected" />
+
 @code {
 
-    [Parameter] public EventCallback OnConnectClick { get; set; }
-
-    string redeemAmount { get; set; } = "";
-
-    int balance { get; set; } = 0;
-
     bool collapseNavMenu = true;
+    private bool isWalletConnected = false;
+    private ConnectModal? connectDialog;
 
     string baseMenuClass = "navbar-collapse d-sm-inline-flex";
 
     string NavMenuCssClass => baseMenuClass + (collapseNavMenu ? " collapse" : "");
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var account = await JSRuntime.InvokeAsync<string>("connectMetaMask");
+            if (!string.IsNullOrEmpty(account))
+            {
+                isWalletConnected = true;
+                StateHasChanged();
+            }
+        }
+    }
 
     void ToggleNavMenu()
     {
@@ -64,20 +95,18 @@
 
     void OpenConnectModal()
     {
-        OnConnectClick.InvokeAsync();
+        connectDialog?.OpenDialog();
     }
 
-    void Redeem()
+    void HandleWalletConnected()
     {
-        // Handle redeem logic here
-        if (!string.IsNullOrWhiteSpace(redeemAmount) && int.TryParse(redeemAmount, out int amount) && amount > 0)
-        {
-            balance += amount;
-            Console.WriteLine($"Redeemed amount: {amount}. New balance: {balance}");
-        }
-        else
-        {
-            Console.WriteLine("Please enter a valid amount to redeem.");
-        }
+        isWalletConnected = true;
+        StateHasChanged();
+    }
+
+    void Logout()
+    {
+        isWalletConnected = false;
+        StateHasChanged();
     }
 }

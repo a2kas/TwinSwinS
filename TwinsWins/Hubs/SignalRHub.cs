@@ -8,15 +8,14 @@
         public async Task NewGame()
         {
             // Generate new game data
-            var newGame = new WeatherForecast
+            var newGame = new Game
             {
-                Date = DateTime.Now,
-                TemperatureC = new Random().Next(-20, 55),
-                Summary = "New Game"
+                OwnerId = 1,
+                Stake = 11,
+                Created = DateTime.Now
             };
 
-            // Broadcast the new game data to all connected clients
-            await Clients.All.SendAsync("ReceiveNewGame", newGame);
+           await Clients.All.SendAsync("ReceiveNewGame", newGame);
         }
     }
 

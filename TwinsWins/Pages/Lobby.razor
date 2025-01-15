@@ -4,12 +4,11 @@
 
 @using Microsoft.AspNetCore.SignalR.Client
 @using TwinsWins.Data
-@inject WeatherForecastService ForecastService
 @inject NavigationManager Navigation
 
 <button class="btn btn-primary" @onclick="StartNewGame">New Game</button>
 
-@if (forecasts == null)
+@if (games == null)
 {
     <p><em>Loading...</em></p>
 }
@@ -20,18 +19,16 @@ else
             <tr>
                 <th>Player ID</th>
                 <th>Stake</th>
-                <th>Date</th>
-                <th>Summary</th>
+                <th>Created</th>
             </tr>
         </thead>
         <tbody>
-            @foreach (var forecast in forecasts)
+            @foreach (var game in games)
             {
                 <tr>
-                    <td>@forecast.Date.ToShortDateString()</td>
-                    <td>@forecast.TemperatureC</td>
-                    <td>@forecast.TemperatureF</td>
-                    <td>@forecast.Summary</td>
+                    <td>@game.OwnerId</td>
+                    <td>@game.Stake</td>
+                    <td>@game.Created.ToShortDateString()</td>
                 </tr>
             }
         </tbody>
@@ -39,19 +36,19 @@ else
 }
 
 @code {
-    private List<WeatherForecast>? forecasts;
+    private List<Game>? games;
     private HubConnection? hubConnection;
 
     protected override async Task OnInitializedAsync()
     {
-        forecasts = new List<WeatherForecast>(); 
+        games = new List<Game>(); 
         hubConnection = new HubConnectionBuilder()
             .WithUrl(Navigation.ToAbsoluteUri("/signalrhub"))
             .Build();
 
-        hubConnection.On<WeatherForecast>("ReceiveNewGame", (newGame) =>
+        hubConnection.On<Game>("ReceiveNewGame", (newGame) =>
         {
-            forecasts.Add(newGame);
+            games.Add(newGame);
             InvokeAsync(StateHasChanged);
         });
 

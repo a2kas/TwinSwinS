@@ -4,7 +4,7 @@
 <PageTitle>TwinsWins</PageTitle>
 
 <header>
-    <NavMenu OnConnectClick="OpenConnectModal" />
+    <NavMenu />
 </header>
 
 <div class="page full-screen">
@@ -12,22 +12,3 @@
         @Body
     </main>
 </div>
-
-@if (isConnectModalVisible)
-{
-    <ConnectModal OnClose="CloseConnectModal" />
-}
-
-@code {
-    private bool isConnectModalVisible;
-
-    private void OpenConnectModal()
-    {
-        isConnectModalVisible = true;
-    }
-
-    private void CloseConnectModal(bool isVisible)
-    {
-        isConnectModalVisible = isVisible;
-    }
-}
