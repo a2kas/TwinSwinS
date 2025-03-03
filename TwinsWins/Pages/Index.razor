@@ -1,17 +1,37 @@
 ﻿@page "/"
+@using TwinsWins.Components.Dialog
+@using TwinsWins.Services;
 @inject IJSRuntime JSRuntime
-<!-- Matrix -->
+@inject IGameService GameService
+
 <div id="matrix" class="matrix" style="@(IsLandscape ? "grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(3, 1fr);" : "grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(6, 1fr);")">
-    @foreach (var cell in Cells)
+    @foreach (var cell in GameService.Cells)
     {
-        <div class="cell" @onclick="() => CellClicked(cell)">
-            @cell
+        <div class="cell @(cell.IsClicked ? "clicked" : "")" @onclick="() => GameService.CellClicked(cell)">
+            @if (cell.ImagePath != null && !cell.IsMatched)
+            {
+                <img src="@($"/images/{cell.ImagePath}")" alt="Image" class="responsive-image" />
+            }
         </div>
     }
 </div>
+@if (!GameService.IsGameActive && !GameService.IsCountdownActive)
+{
+    <button id="startgame" class="center-button btn btn-primary btn-lg" @onclick="GameService.StartCountdown">Start Game</button>
+}
+@if (GameService.IsCountdownActive)
+{
+    <button id="countdown" class="center-button btn btn-primary btn-lg">@GameService.CountdownValue</button>
+}
+
+<GameEndDialog Score="gameScore" OnClose="HandleDialogClose" @ref="gameEndDialog" />
 
 @code {
-    private List<int> Cells { get; set; } = new List<int>();
+    public bool IsLandscape { get; set; }
+    public int WindowWidth { get; set; }
+    public int WindowHeight { get; set; }
+    private int gameScore;
+    private GameEndDialog gameEndDialog;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -20,6 +40,12 @@
             await JSRuntime.InvokeVoidAsync("initializeResizeHandler", DotNetObjectReference.Create(this));
             AdjustMatrix();
         }
+    }
+
+    protected override void OnInitialized()
+    {
+        GameService.OnGameStateChanged += StateHasChanged;
+        GameService.OnGameEnded += ShowGameScoreDialog;
     }
 
     [JSInvokable]
@@ -33,22 +59,20 @@
     [JSInvokable]
     public void AdjustMatrix()
     {
-        var isLandscape = WindowWidth > WindowHeight;
-        var rows = isLandscape ? 3 : 6;
-        var cols = isLandscape ? 6 : 3;
-
-        Cells = Enumerable.Range(1, rows * cols).ToList();
-        IsLandscape = isLandscape; // Update the state
+        IsLandscape = WindowWidth > WindowHeight;
         StateHasChanged();
     }
 
-    private void CellClicked(int cell)
+    private void ShowGameScoreDialog(int score)
     {
-        Console.WriteLine($"Cell {cell} clicked");
-        // Handle WebSocket send logic here if needed
+        gameScore = score;
+        gameEndDialog.Show();
     }
 
-    public bool IsLandscape { get; set; }
-    public int WindowWidth { get; set; }
-    public int WindowHeight { get; set; }
+    private void HandleDialogClose()
+    {
+        // Navigate back to main page and show "Start Game" button
+        // GameService.ResetGame();
+        StateHasChanged();
+    }
 }

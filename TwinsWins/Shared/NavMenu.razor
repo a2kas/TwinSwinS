@@ -1,11 +1,27 @@
 ﻿@using Microsoft.JSInterop
-@using TwinsWins.Components.Modal
+@using TonSdk.Connect
+@using System.IO.IsolatedStorage;
+@using TwinsWins.Components.Dialog
+@using TwinsWins.Components.SnackBar
+@using TwinsWins.Services;
 @inject IJSRuntime JSRuntime
+@inject ITonWalletService WalletService
+@inject IGameService GameService
 
 <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow">
     <div class="container">
         <!-- Logo Section -->
-        <a class="navbar-brand" href="javascript:void(0);">TwinSwinS</a>
+        <div class="logo-text">
+            <span class="red-letter">T</span>
+            <span class="blue-letter">W</span>
+            <span class="blue-letter">I</span>
+            <span class="blue-letter">N</span>
+            <span class="red-letter">S</span>
+            <span class="blue-letter">W</span>
+            <span class="blue-letter">I</span>
+            <span class="blue-letter">N</span>
+            <span class="red-letter">S</span>
+        </div>
 
         <!-- Navbar Toggle Button -->
         <button class="navbar-toggler" type="button" @onclick="ToggleNavMenu" aria-controls="navbarSupportedContent" aria-expanded="@(!collapseNavMenu).ToString().ToLower()" aria-label="Toggle navigation">
@@ -15,77 +31,99 @@
         <!-- Navigation Items -->
         <div class="@NavMenuCssClass" id="navbarSupportedContent">
             <ul class="navbar-nav ms-auto">
-                <!-- Home Link -->
-                <li class="nav-item">
-                    <NavLink class="nav-link text-dark" href="/" Match="NavLinkMatch.All">
-                        <span class="oi oi-home"></span> Home
-                    </NavLink>
-                </li>
-
-                <!-- Connect Button -->
-                @if (!isWalletConnected)
+                @if (GameService.IsGameActive)
                 {
                     <li class="nav-item">
-                        <NavLink class="nav-link text-dark" href="javascript:void(0);" @onclick="OpenConnectModal">
-                            <span class="oi oi-link-intact"></span> Connect
+                        <NavLink class="nav-link text-dark disabled" href="#">
+                            <span class="oi oi-clock" title="Time Remaining"></span> @GameService.TimeRemaining
+                        </NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link text-dark disabled" href="#">
+                            <span class="oi oi-star" title="Score"></span> @GameService.Score
                         </NavLink>
                     </li>
                 }
-
-                <!-- Account Link -->
-                @if (isWalletConnected)
+                else
                 {
+                    <!-- Lobby Link -->
                     <li class="nav-item">
-                        <NavLink class="nav-link text-dark" href="/account">
-                            <span class="oi oi-person"></span> Account
+                        <NavLink class="nav-link text-dark" href="/lobby">
+                            <span class="oi oi-play-circle"></span> Lobby
                         </NavLink>
                     </li>
-                }
 
-                <!-- Logout Button -->
-                @if (isWalletConnected)
-                {
+                    <!-- About Link -->
                     <li class="nav-item">
-                        <NavLink class="nav-link text-dark" href="javascript:void(0);" @onclick="Logout">
-                            <span class="oi oi-account-logout"></span> Logout
+                        <NavLink class="nav-link text-dark" href="javascript:void(0);" @onclick="ShowAboutDialog">
+                            <span class="oi oi-question-mark"></span> About
                         </NavLink>
                     </li>
+
+                    <!-- Connect Button -->
+                    @if (!isWalletConnected)
+                    {
+                        <li class="nav-item">
+                            <NavLink class="nav-link text-dark" href="javascript:void(0);" @onclick="OpenConnectModal">
+                                <span class="oi oi-link-intact"></span> Connect TON Wallet
+                            </NavLink>
+                        </li>
+                    }
+
+                    <!-- Account Link -->
+                    @if (isWalletConnected)
+                    {
+                        <li class="nav-item">
+                            <NavLink class="nav-link text-dark" href="/account">
+                                <span class="oi oi-person"></span> Account
+                            </NavLink>
+                        </li>
+                    }
+
+                    <!-- Logout Button -->
+                    @if (isWalletConnected)
+                    {
+                        <li class="nav-item">
+                            <NavLink class="nav-link text-dark" href="javascript:void(0);" @onclick="Logout">
+                                <span class="oi oi-account-logout"></span> Logout
+                            </NavLink>
+                        </li>
+                    }
                 }
-                
-                <!-- Lobby Link -->
-                <li class="nav-item">
-                    <NavLink class="nav-link text-dark" href="/lobby">
-                        <span class="oi oi-plus"></span> Lobby
-                    </NavLink>
-                </li>
             </ul>
         </div>
     </div>
 </nav>
 
-<ConnectModal @ref="connectDialog" OnWalletConnected="HandleWalletConnected" />
+<WalletConnectDialog @ref="connectDialog" />
+<AboutDialog @ref="aboutDialog" />
+<SnackBar @ref="snackbar" />
 
 @code {
-
     bool collapseNavMenu = true;
     private bool isWalletConnected = false;
-    private ConnectModal? connectDialog;
+    private WalletConnectDialog? connectDialog;
+    private AboutDialog? aboutDialog;
+    private SnackBar snackbar;
 
     string baseMenuClass = "navbar-collapse d-sm-inline-flex";
 
     string NavMenuCssClass => baseMenuClass + (collapseNavMenu ? " collapse" : "");
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender) 
         {
-            var account = await JSRuntime.InvokeAsync<string>("connectMetaMask");
-            if (!string.IsNullOrEmpty(account))
-            {
-                isWalletConnected = true;
-                StateHasChanged();
-            }
+            WalletService.RestoreConnectionAsync();
         }
+        return base.OnAfterRenderAsync(firstRender);
+    }
+
+    protected override void OnInitialized()
+    {
+        GameService.OnGameStateChanged += StateHasChanged;
+        WalletService.OnWalletConnected += HandleWalletConnected;
+        WalletService.OnErrorOccurred += HandleErrorOccurred;
     }
 
     void ToggleNavMenu()
@@ -93,20 +131,41 @@
         collapseNavMenu = !collapseNavMenu;
     }
 
+    private void HandleError(string errorMessage)
+    {
+        snackbar.Show(errorMessage);
+    }
+
     void OpenConnectModal()
     {
         connectDialog?.OpenDialog();
     }
 
-    void HandleWalletConnected()
+    void ShowAboutDialog()
     {
-        isWalletConnected = true;
-        StateHasChanged();
+        aboutDialog?.Show();
     }
 
-    void Logout()
+    void HandleWalletConnected(Wallet wallet)
     {
-        isWalletConnected = false;
-        StateHasChanged();
+        isWalletConnected = wallet.Account != null;
+        InvokeAsync(StateHasChanged);
+    }
+
+    void HandleErrorOccurred(string error)
+    {
+        Console.WriteLine("Error: " + error);
+    }
+
+    async Task Logout()
+    {
+        try 
+        { 
+            await WalletService.DisconnectAsync();
+        } 
+        catch (Exception ex) 
+        {
+            snackbar.Show(ex.Message);
+        }
     }
 }

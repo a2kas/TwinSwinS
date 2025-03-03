@@ -1,0 +1,102 @@
+﻿@inject IJSRuntime JSRuntime
+@inject ITonWalletService WalletService
+@using TonSdk.Connect
+@using TwinsWins.Components.SnackBar;
+@using TwinsWins.Services;
+
+<div class="modal" tabindex="-1" style="display: @(isOpen ? "block" : "none")">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Connect Wallet</h5>
+                <button type="button" class="btn-close" @onclick="CloseDialog"></button>
+            </div>
+            <div class="modal-body">
+                @if (isLoading)
+                {
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                }
+                else if (walletsConfig != null)
+                {
+                    @foreach (var wallet in walletsConfig)
+                    {
+                        <div class="wallet-option" @onclick="() => ConnectWallet(wallet)" style="cursor: pointer; margin-bottom: 10px;">
+                            <img src="@wallet.Image" alt="@wallet.Name" style="width: 50px; height: 50px; margin-right: 10px;" />
+                            <a>@wallet.Name</a>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<SnackBar @ref="snackbar" />
+
+@code {
+
+    private bool isOpen = false;
+    private bool isLoading = false;
+    private WalletConfig[]? walletsConfig;
+    private SnackBar snackbar;
+    private string fallbackImageUrl = "/images/fallback.png"; // Path to your fallback image
+
+    protected override void OnInitialized()
+    {
+        WalletService.OnWalletConnected += HandleWalletConnected;
+        WalletService.OnErrorOccurred += HandleErrorOccurred;
+    }
+
+    public async Task OpenDialog()
+    {
+        isOpen = true;
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            walletsConfig = WalletService.GetWallets();
+            var imagesArray = walletsConfig.Select(w => w.Image).ToList();
+            await JSRuntime.InvokeVoidAsync("loadImages", (object)imagesArray, fallbackImageUrl);
+            isLoading = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            isLoading = false;
+            snackbar.Show(ex.Message);
+        }
+    }
+
+    public void CloseDialog()
+    {
+        isOpen = false;
+        StateHasChanged();
+    }
+
+    private async Task ConnectWallet(WalletConfig walletConfig)
+    {
+       try
+       {
+           var connectionUrl = await WalletService.ConnectWalletAsync(walletConfig);
+           await JSRuntime.InvokeVoidAsync("openInNewWindow", connectionUrl);
+       }
+       catch (Exception ex)
+       {
+           snackbar.Show(ex.Message);
+       }
+    }
+
+    private void HandleWalletConnected(Wallet wallet)
+    {
+        isOpen = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleErrorOccurred(string error)
+    {
+        snackbar.Show(error);
+    }
+}

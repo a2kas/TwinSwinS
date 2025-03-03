@@ -72,11 +72,11 @@ a, .btn-link {
 
 #matrix {
     display: grid;
-    height: 100vh;
+    height: calc(100vh - 56px);
     width: 100vw;
     gap: 1px;
-    grid-template-columns: repeat(6, 1fr); 
-    grid-template-rows: repeat(3, 1fr); 
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(3, 1fr);
     background-color: #ccc;
 }
 
@@ -86,8 +86,53 @@ a, .btn-link {
     align-items: center;
     border: 1px solid #ddd; /* Optional: Cell borders */
     background-color: #f0f0f0;
-    font-size: 2rem;
-    font-weight: bold;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.cell.flipped {
+    background-color: #f0f0f0;
+    border: 2px solid #007bff;
+    transform: scale(1.1);
+}
+
+.cell.clicked::before {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border: 2px solid transparent;
+    border-image: radial-gradient(circle, rgba(255, 0, 0, 1), rgba(255, 0, 0, 0)) 1;
+    border-radius: 4px; /* Optional: Adjust based on your design */
+    pointer-events: none; /* Ensure the gradient border does not interfere with cell clicks */
+}
+
+#countdown, #startgame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px; /* Adjust width as needed */
+    height: 100px; /* Adjust height as needed */
+    font-size: 24px; /* Adjust font size as needed */
+    padding: 20px; /* Adjust padding as needed */
+}
+
+@keyframes countdown-animation {
+    0% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+.nav-link.disabled {
+    pointer-events: none;
+    cursor: not-allowed;
 }
 
 .full-screen {
@@ -103,4 +148,30 @@ a, .btn-link {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+.responsive-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+@font-face {
+    font-family: 'Fun City Level 4';
+    src: url('/fonts/FunCityLevel4Basic.otf') format('truetype');
+}
+
+.logo-text {
+    font-family: 'Fun City Level 4', sans-serif;
+    font-size: 30px;
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+.red-letter {
+    color: rgb(255 155 165);
+}
+
+.blue-letter {
+    color: rgb(120 185 255);
 }

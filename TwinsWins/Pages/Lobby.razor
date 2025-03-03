@@ -1,67 +1,144 @@
 ﻿@page "/lobby"
-
-<PageTitle>Weather forecast</PageTitle>
-
 @using Microsoft.AspNetCore.SignalR.Client
-@using TwinsWins.Data
+@using TwinsWins.Data.Model
+@using TwinsWins.Data.Repository
+@using TwinsWins.Services
+@using TwinsWins.Components.Dialog
+@using TwinsWins.Components.SnackBar;
+@inject IGameService GameService
+@inject ITonWalletService WalletService
 @inject NavigationManager Navigation
 
-<button class="btn btn-primary" @onclick="StartNewGame">New Game</button>
 
-@if (games == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <table class="table">
-        <thead>
+<button class="btn btn-primary" @onclick="ShowCreateGameDialog">Create New Game</button>
+
+<CreateGameDialog @ref="createGameDialog" OnGameCreated="HandleGameCreated" />
+<WalletConnectDialog @ref="walletConnectDialog" />
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Owner ID</th>
+            <th>Created</th>
+            <th>Stake</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var game in availableGames)
+        {
             <tr>
-                <th>Player ID</th>
-                <th>Stake</th>
-                <th>Created</th>
+                <td>@game.OwnerId</td>
+                <td>@game.Created</td>
+                <td>@game.Stake</td>
+                <td>
+                    <button class="btn btn-primary" @onclick="() => JoinGame(game.Id)">Play</button>
+                </td>
             </tr>
-        </thead>
-        <tbody>
-            @foreach (var game in games)
-            {
-                <tr>
-                    <td>@game.OwnerId</td>
-                    <td>@game.Stake</td>
-                    <td>@game.Created.ToShortDateString()</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+        }
+    </tbody>
+</table>
+
+<div class="pagination">
+    <button class="btn btn-secondary" @onclick="PreviousPage" disabled="@(!CanGoToPreviousPage)">Previous</button>
+    <span> Page @CurrentPage of @TotalPages </span>
+    <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!CanGoToNextPage)">Next</button>
+</div>
+
+<SnackBar @ref="snackbar" />
 
 @code {
-    private List<Game>? games;
-    private HubConnection? hubConnection;
+    private CreateGameDialog createGameDialog;
+    private WalletConnectDialog walletConnectDialog;
+    private List<Game> availableGames = new();
+    private HubConnection hubConnection;
+    private SnackBar snackbar;
+
+    private int CurrentPage { get; set; } = 1;
+    private int PageSize { get; set; } = 10;
+    private int TotalPages => (int)Math.Ceiling((double)availableGames.Count / PageSize);
+
+    private IEnumerable<Game> PagedGames => availableGames.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
 
     protected override async Task OnInitializedAsync()
     {
-        games = new List<Game>(); 
+        availableGames = await GameService.GetAvailableGames();
+
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/signalrhub"))
+            .WithUrl(Navigation.ToAbsoluteUri("/gamehub"))
             .Build();
 
         hubConnection.On<Game>("ReceiveNewGame", (newGame) =>
         {
-            games.Add(newGame);
+            availableGames.Add(newGame);
             InvokeAsync(StateHasChanged);
         });
 
         await hubConnection.StartAsync();
     }
 
-    private async Task StartNewGame()
+    private async Task ShowCreateGameDialog()
     {
-        if (hubConnection != null)
+        if (!WalletService.IsConnected)
         {
-            await hubConnection.SendAsync("NewGame");
+            await walletConnectDialog.OpenDialog();
+        }
+        else
+        {
+            createGameDialog.Show();
         }
     }
+
+    private async Task HandleGameCreated(int stake)
+    {
+        try
+        {
+            var cells = await GameService.InitPaidGame(WalletService.WalletAddress, stake);
+            if (cells != null && cells.Count > 0)
+            {
+                Navigation.NavigateTo("/");
+            }
+        }
+        catch (Exception ex)
+        {
+            snackbar.Show(ex.Message);
+        }
+    }
+
+    private async Task JoinGame(long gameId)
+    {
+        try
+        {
+            var cells = await GameService.JoinPaidGame(WalletService.WalletAddress, gameId);
+            if (cells != null && cells.Count > 0)
+            {
+                Navigation.NavigateTo("/");
+            }
+        }
+        catch (Exception ex)
+        {
+            snackbar.Show(ex.Message);
+        }
+    }
+
+    private void NextPage()
+    {
+        if (CanGoToNextPage)
+        {
+            CurrentPage++;
+        }
+    }
+
+    private void PreviousPage()
+    {
+        if (CanGoToPreviousPage)
+        {
+            CurrentPage--;
+        }
+    }
+
+    private bool CanGoToNextPage => CurrentPage < TotalPages;
+    private bool CanGoToPreviousPage => CurrentPage > 1;
 
     public async ValueTask DisposeAsync()
     {
@@ -70,4 +147,4 @@ else
             await hubConnection.DisposeAsync();
         }
     }
-   }
+}

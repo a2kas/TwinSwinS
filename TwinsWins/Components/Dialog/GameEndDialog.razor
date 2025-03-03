@@ -1,0 +1,37 @@
+﻿@code {
+    [Parameter] public int Score { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    private bool isVisible;
+
+    public void Show()
+    {
+        isVisible = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void CloseDialog()
+    {
+        isVisible = false;
+        OnClose.InvokeAsync();
+    }
+}
+
+@if (isVisible)
+{
+    <div class="modal" tabindex="-1" style="display: block;">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Game Over</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDialog"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Your score: @Score</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" @onclick="CloseDialog">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
