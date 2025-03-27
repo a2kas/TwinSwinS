@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TwinsWins.Data.Model
 {
-    [Table("game")]
-    public class Game
+    [Table("game_lobby")]
+    public class GameLobby
     {
         [Key]
         [Column("id")]
@@ -21,6 +21,5 @@ namespace TwinsWins.Data.Model
 
         [Column("body")]
         public string Body { get; set; }
-
     }
 }

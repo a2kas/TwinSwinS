@@ -50,7 +50,7 @@
 @code {
     private CreateGameDialog createGameDialog;
     private WalletConnectDialog walletConnectDialog;
-    private List<Game> availableGames = new();
+    private List<GameLobby> availableGames = new();
     private HubConnection hubConnection;
     private SnackBar snackbar;
 
@@ -58,7 +58,7 @@
     private int PageSize { get; set; } = 10;
     private int TotalPages => (int)Math.Ceiling((double)availableGames.Count / PageSize);
 
-    private IEnumerable<Game> PagedGames => availableGames.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+    private IEnumerable<GameLobby> PagedGames => availableGames.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
 
     protected override async Task OnInitializedAsync()
     {
@@ -68,9 +68,16 @@
             .WithUrl(Navigation.ToAbsoluteUri("/gamehub"))
             .Build();
 
-        hubConnection.On<Game>("ReceiveNewGame", (newGame) =>
+        hubConnection.On<GameLobby>("ReceiveNewGame", (newGame) =>
         {
             availableGames.Add(newGame);
+            InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.On<GameLobby>("ReceiveDeleteGame", (game) =>
+        {
+            var index = availableGames.FindIndex(g => g.Id == game.Id);
+            availableGames.RemoveAt(index);
             InvokeAsync(StateHasChanged);
         });
 

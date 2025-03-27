@@ -88,6 +88,13 @@ a, .btn-link {
     background-color: #f0f0f0;
     cursor: pointer;
     overflow: hidden;
+    touch-action: manipulation;
+}
+
+.cell img {
+    user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
 }
 
 .cell.flipped {
@@ -96,17 +103,8 @@ a, .btn-link {
     transform: scale(1.1);
 }
 
-.cell.clicked::before {
-    content: "";
-    position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
-    border: 2px solid transparent;
-    border-image: radial-gradient(circle, rgba(255, 0, 0, 1), rgba(255, 0, 0, 0)) 1;
-    border-radius: 4px; /* Optional: Adjust based on your design */
-    pointer-events: none; /* Ensure the gradient border does not interfere with cell clicks */
+.cell.clicked {
+    border: 2px solid red;
 }
 
 #countdown, #startgame {

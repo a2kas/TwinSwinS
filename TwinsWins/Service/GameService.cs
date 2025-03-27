@@ -18,10 +18,12 @@ namespace TwinsWins.Services
         private DateTime _gameStartTime;
         private readonly ImageService _imageService;
         private readonly ImageService _paidImageService;
-        private readonly IGameRepository _gameRepository;
+        private readonly IGameLobbyRepository _gameLobbyRepository;
+        private readonly IGameTransRepository _gameTransRepository;
         private readonly IUserRepository _userRepository;
         private readonly IHubContext<GameHub> _hubContext;
         private SynchronizationContext _syncContext;
+        private readonly object _lockObject = new object();
 
         public List<Cell> Cells { get; private set; } = new List<Cell>();
         public Cell FirstSelectedCell { get; private set; }
@@ -31,7 +33,7 @@ namespace TwinsWins.Services
         public int CountdownValue { get; private set; }
         public int TimeRemaining { get; private set; }
         public int Score { get; private set; }
-        public bool IsFreeGame { get; private set; }
+        public bool ShouldShowImages => !IsCountdownActive && IsGameActive;
 
         public event Action OnGameStateChanged;
         public event Action<int> OnGameEnded;
@@ -39,28 +41,37 @@ namespace TwinsWins.Services
         public GameService(ImageService imageService,
             ImageService paidImageService,
             IUserRepository userRepository,
-            IGameRepository gameRepository,
+            IGameLobbyRepository gameLobbyRepository,
+            IGameTransRepository gameTransRepository,
             IHubContext<GameHub> hubContext,
             IJSRuntime jsRuntime)
         {
             _imageService = imageService;
             _paidImageService = paidImageService;
-            _gameRepository = gameRepository;
+            _gameLobbyRepository = gameLobbyRepository;
+            _gameTransRepository = gameTransRepository;
             _userRepository = userRepository;
             _hubContext = hubContext;
             _syncContext = SynchronizationContext.Current;
         }
 
-        public async Task<List<Game>> GetAvailableGames() 
+        public async Task<List<GameLobby>> GetAvailableGames() 
         {
-            return await _gameRepository.GetAvailableGames();
+            return await _gameLobbyRepository.GetAvailableGames();
         }
 
         public async Task<List<Cell>> InitFreeGame()
         {
-            IsFreeGame = true;
             var imagePairs = _imageService.GetRandomImagePairs(9);
-            return await Task.FromResult(CreateGameCells(imagePairs));
+            var cells = CreateGameCells(imagePairs);
+
+            Cells = cells;
+            IsGameActive = false;
+            Score = 0;
+
+            StartCountdown();
+
+            return await Task.FromResult(cells);
         }
 
         public async Task<List<Cell>> InitPaidGame(string walletAddress, decimal stake)
@@ -78,7 +89,7 @@ namespace TwinsWins.Services
                 ImageIdMap = _imageIdMap
             };
 
-            var newGame = new Game
+            var newGame = new GameLobby
             {
                 OwnerId = user.Id,
                 Stake = stake,
@@ -86,13 +97,22 @@ namespace TwinsWins.Services
                 Body = JsonConvert.SerializeObject(gameBody)
             };
 
-            await _gameRepository.CreateGame(newGame);
+            newGame = await _gameLobbyRepository.CreateLobbyGame(newGame);
+
+            var gameTrans = new GameTransaction
+            {
+                Id = newGame.Id,
+                OwnerId = user.Id,
+                Stake = stake,
+                Created = DateTime.UtcNow
+            };
+
+            await _gameTransRepository.CreateGameTransaction(gameTrans);
             await _hubContext.Clients.All.SendAsync("ReceiveNewGame", newGame);
 
             Cells = cells;
             IsGameActive = false;
             Score = 0;
-            IsFreeGame = false;
 
             StartCountdown();
 
@@ -102,15 +122,18 @@ namespace TwinsWins.Services
         public async Task<List<Cell>> JoinPaidGame(string walletAddress, long gameId)
         {
             var user = await _userRepository.GetUserByWalletAddress(walletAddress);
-            var game = await _gameRepository.GetGameById(gameId);
+            var game = await _gameLobbyRepository.GetById(gameId);
             var gameBody = JsonConvert.DeserializeObject<GameBody>(game.Body);
+
+            await _gameLobbyRepository.DeleteLobbyGame(gameId);
+            await _gameTransRepository.SetOpponent(gameId,user.Id);
+            await _hubContext.Clients.All.SendAsync("ReceiveDeleteGame", game);
 
             _imageIdMap = gameBody.ImageIdMap;
             Cells = gameBody.Cells;
 
             IsGameActive = false;
             Score = 0;
-            IsFreeGame = false;
 
             StartCountdown();
 
@@ -136,7 +159,6 @@ namespace TwinsWins.Services
             }
 
             _cells = _cells.OrderBy(c => Guid.NewGuid()).ToList();
-            Cells = _cells;
             return _cells;
         }
 
@@ -176,11 +198,6 @@ namespace TwinsWins.Services
             _gameTimer.Elapsed += TimerCallback;
             _gameTimer.Start();
 
-            //if (IsFreeGame) 
-            //{ 
-            //    Cells = await InitFreeGame();
-            //}
-
             InvokeGameStateChanged();
         }
 
@@ -218,6 +235,7 @@ namespace TwinsWins.Services
                 return;
 
             cell.IsClicked = true;
+            InvokeGameStateChanged();
 
             if (FirstSelectedCell == null)
             {
@@ -232,6 +250,8 @@ namespace TwinsWins.Services
                 {
                     FirstSelectedCell.IsMatched = true;
                     SecondSelectedCell.IsMatched = true;
+                    FirstSelectedCell.IsClicked = false;
+                    SecondSelectedCell.IsClicked = false;
                     Score += CalculatePoints(true);
                 }
                 else
@@ -243,15 +263,12 @@ namespace TwinsWins.Services
 
                 FirstSelectedCell = null;
                 SecondSelectedCell = null;
+                InvokeGameStateChanged();
             }
 
             if (Cells.All(c => c.IsMatched))
             {
                 EndGame();
-            }
-            else 
-            { 
-                InvokeGameStateChanged(); 
             }
         }
 
@@ -261,7 +278,6 @@ namespace TwinsWins.Services
             var timeRatio = elapsedTime / 60.0;
             const int maxPoints = 1000;
 
-            // Reduce points over time
             var points = Math.Floor(maxPoints * (1 - timeRatio));
 
             return isPairMatched ? Math.Max((int)points, 0) : -100;
@@ -269,7 +285,17 @@ namespace TwinsWins.Services
 
         private void InvokeGameStateChanged()
         {
-            _syncContext?.Post(_ => OnGameStateChanged?.Invoke(), null);
+            if (_syncContext != null)
+            {
+                _syncContext.Post(_ =>
+                {
+                    OnGameStateChanged?.Invoke();
+                }, null);
+            }
+            else
+            {
+                OnGameStateChanged?.Invoke();
+            }
         }
 
         public void Dispose()

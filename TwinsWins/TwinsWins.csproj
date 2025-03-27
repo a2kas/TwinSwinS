@@ -16,11 +16,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.1" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.3" />
+    <PackageReference Include="TonSdk.Client" Version="0.3.11" />
+    <PackageReference Include="TonSdk.Connect" Version="0.2.5" />
     <PackageReference Include="TonSdk.Core" Version="0.3.9" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Users\adasu\Downloads\TonSdk.NET-main\TonSdk.NET-main\TonSDK.Connect\TonSdk.Connect.csproj" />
   </ItemGroup>
 
   <ItemGroup>

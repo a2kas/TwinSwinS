@@ -11,12 +11,12 @@ namespace TwinsWins.Services
         int CountdownValue { get; }
         int TimeRemaining { get; }
         int Score { get; }
-        bool IsFreeGame { get; }
+        bool ShouldShowImages { get; }
 
         event Action OnGameStateChanged;
         event Action<int> OnGameEnded;
 
-        Task<List<Game>> GetAvailableGames();
+        Task<List<GameLobby>> GetAvailableGames();
         Task<List<Cell>> InitFreeGame();
         Task<List<Cell>> InitPaidGame(string walletAddress, decimal stake);
         Task<List<Cell>> JoinPaidGame(string walletAddress, long gameId);

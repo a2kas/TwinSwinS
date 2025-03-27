@@ -1,23 +1,28 @@
 ﻿@page "/"
 @using TwinsWins.Components.Dialog
 @using TwinsWins.Services;
+@using TwinsWins.Service.Model;
 @inject IJSRuntime JSRuntime
 @inject IGameService GameService
 
 <div id="matrix" class="matrix" style="@(IsLandscape ? "grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(3, 1fr);" : "grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(6, 1fr);")">
     @foreach (var cell in GameService.Cells)
     {
-        <div class="cell @(cell.IsClicked ? "clicked" : "")" @onclick="() => GameService.CellClicked(cell)">
+        <div class="cell @(cell.IsClicked ? "clicked" : "")"
+             @onmousedown="(e) => HandleMouseDown(e, cell)"
+             @onmouseup="(e) => HandleMouseUp(e, cell)"
+             @ontouchstart="(e) => HandleTouchStart(e, cell)"
+             @ontouchend="(e) => HandleTouchEnd(e, cell)">
             @if (cell.ImagePath != null && !cell.IsMatched)
             {
-                <img src="@($"/images/{cell.ImagePath}")" alt="Image" class="responsive-image" />
+                <img src="@($"/images/{cell.ImagePath}")" alt="Image" class="responsive-image" draggable="false" />
             }
         </div>
     }
 </div>
 @if (!GameService.IsGameActive && !GameService.IsCountdownActive)
 {
-    <button id="startgame" class="center-button btn btn-primary btn-lg" @onclick="GameService.StartCountdown">Start Game</button>
+    <button id="startgame" class="center-button btn btn-primary btn-lg" @onclick="GameService.InitFreeGame">Lets Play</button>
 }
 @if (GameService.IsCountdownActive)
 {
@@ -32,6 +37,8 @@
     public int WindowHeight { get; set; }
     private int gameScore;
     private GameEndDialog gameEndDialog;
+    private DateTime mouseDownTime;
+    private Cell currentCell;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -46,6 +53,50 @@
     {
         GameService.OnGameStateChanged += StateHasChanged;
         GameService.OnGameEnded += ShowGameScoreDialog;
+    }
+
+    private void HandleMouseDown(MouseEventArgs e, Cell cell)
+    {
+        if (!GameService.IsGameActive || cell.IsMatched || cell.IsClicked)
+            return;
+
+        mouseDownTime = DateTime.Now;
+        currentCell = cell;
+    }
+
+    private async Task HandleMouseUp(MouseEventArgs e, Cell cell)
+    {
+        if (!GameService.IsGameActive || cell.IsMatched || cell.IsClicked || cell != currentCell)
+            return;
+
+        if ((DateTime.Now - mouseDownTime).TotalMilliseconds < 300)
+        {
+            await GameService.CellClicked(cell);
+        }
+
+        currentCell = null;
+    }
+
+    private void HandleTouchStart(TouchEventArgs e, Cell cell)
+    {
+        if (!GameService.IsGameActive || cell.IsMatched || cell.IsClicked)
+            return;
+
+        mouseDownTime = DateTime.Now;
+        currentCell = cell;
+    }
+
+    private async Task HandleTouchEnd(TouchEventArgs e, Cell cell)
+    {
+        if (!GameService.IsGameActive || cell.IsMatched || cell.IsClicked || cell != currentCell)
+            return;
+
+        if ((DateTime.Now - mouseDownTime).TotalMilliseconds < 300)
+        {
+            await GameService.CellClicked(cell);
+        }
+
+        currentCell = null;
     }
 
     [JSInvokable]

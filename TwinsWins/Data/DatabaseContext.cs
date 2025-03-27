@@ -3,12 +3,13 @@ using TwinsWins.Data.Model;
 
 namespace TwinsWins.Data
 {
-    public class DatabseContext : DbContext
+    public class DatabaseContext : DbContext
     {
         public DbSet<User> Users { get; set; }
-        public DbSet<Game> Games { get; set; }
+        public DbSet<GameLobby> LobbyGames { get; set; }
+        public DbSet<GameTransaction> GameTransactions { get; set; }
 
-        public DatabseContext(DbContextOptions<DatabseContext> options) : base(options)
+        public DatabaseContext(DbContextOptions<DatabaseContext> options) : base(options)
         { 
         }
     }

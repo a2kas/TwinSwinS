@@ -1,0 +1,5 @@
+{
+  "url": "http://www.twinswins.com", // required
+  "name": "TwinSwinS", // required
+  "iconUrl": "http://www.twinswins.com/icon.ico" // required
+}

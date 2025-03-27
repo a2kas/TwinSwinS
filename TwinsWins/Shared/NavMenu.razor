@@ -11,17 +11,19 @@
 <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow">
     <div class="container">
         <!-- Logo Section -->
-        <div class="logo-text">
-            <span class="red-letter">T</span>
-            <span class="blue-letter">W</span>
-            <span class="blue-letter">I</span>
-            <span class="blue-letter">N</span>
-            <span class="red-letter">S</span>
-            <span class="blue-letter">W</span>
-            <span class="blue-letter">I</span>
-            <span class="blue-letter">N</span>
-            <span class="red-letter">S</span>
-        </div>
+        <NavLink class="nav-link" href="/">
+            <div class="logo-text">
+                <span class="red-letter">T</span>
+                <span class="blue-letter">W</span>
+                <span class="blue-letter">I</span>
+                <span class="blue-letter">N</span>
+                <span class="red-letter">S</span>
+                <span class="blue-letter">W</span>
+                <span class="blue-letter">I</span>
+                <span class="blue-letter">N</span>
+                <span class="red-letter">S</span>
+            </div>
+        </NavLink>
 
         <!-- Navbar Toggle Button -->
         <button class="navbar-toggler" type="button" @onclick="ToggleNavMenu" aria-controls="navbarSupportedContent" aria-expanded="@(!collapseNavMenu).ToString().ToLower()" aria-label="Toggle navigation">
@@ -110,17 +112,10 @@
 
     string NavMenuCssClass => baseMenuClass + (collapseNavMenu ? " collapse" : "");
 
-    protected override Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender) 
-        {
-            WalletService.RestoreConnectionAsync();
-        }
-        return base.OnAfterRenderAsync(firstRender);
-    }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        isWalletConnected = await WalletService.RestoreConnectionAsync();
         GameService.OnGameStateChanged += StateHasChanged;
         WalletService.OnWalletConnected += HandleWalletConnected;
         WalletService.OnErrorOccurred += HandleErrorOccurred;
