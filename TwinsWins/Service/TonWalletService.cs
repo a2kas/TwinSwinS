@@ -1,4 +1,7 @@
-﻿using TonSdk.Client;
+﻿using System.Numerics;
+using System.Security.Cryptography;
+using System.Text;
+using TonSdk.Client;
 using TonSdk.Connect;
 using TonSdk.Core;
 using TonSdk.Core.Boc;
@@ -19,7 +22,10 @@ namespace TwinsWins.Services
         // Game contract constants
         private const string ContractAddress = "EQB4SrBdve8cDp7x_0pGthk-llNVyCZMdHBiJeWQEii1LFkK";
         private const int INITIALIZE_GAME_OP = 1;
-        private const int SUBMIT_SCORE_OP = 2; 
+        private const int SUBMIT_SCORE_OP = 2;
+        private const int ADD_BONUS_CODE_OP = 3;
+        private const int REDEEM_BONUS_CODE_OP = 4;
+        private const int REMOVE_BONUS_CODE_OP = 5;
         private const long MIN_TON_VALUE = 100000000;
 
         public event Action<TonSdk.Connect.Wallet>? OnWalletConnected;
@@ -74,6 +80,147 @@ namespace TwinsWins.Services
                 return 0;
             }
         }
+
+        private BigInteger HashBonusCode(string bonusCode)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(bonusCode));
+                return new BigInteger(hashBytes);
+            }
+        }
+
+        public async Task<string> AddBonusCodeAsync(string bonusCode, decimal bonusAmount, decimal amount = 0.05m)
+        {
+            if (!IsConnected)
+            {
+                throw new InvalidOperationException("Wallet is not connected");
+            }
+
+            var amountCoins = new Coins(amount);
+            var bonusAmountCoins = new Coins(bonusAmount);
+
+            try
+            {
+                // Hash the bonus code to a 256-bit value
+                BigInteger bonusCodeHash = HashBonusCode(bonusCode);
+
+                var body = new CellBuilder()
+                    .StoreUInt(ADD_BONUS_CODE_OP, 32)
+                    .StoreUInt(bonusCodeHash, 256)
+                    .StoreCoins(bonusAmountCoins)
+                    .Build();
+
+                var message = new Message[] {
+                    new Message(
+                        new Address(ContractAddress),
+                        amountCoins,
+                        null,
+                        body
+                    )
+                };
+
+                var request = new SendTransactionRequest(
+                    message,
+                    DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeSeconds()
+                );
+
+                var result = await _tonConnect.SendTransaction(request);
+                return result.Value.Boc.ToString();
+            }
+            catch (Exception ex)
+            {
+                OnErrorOccurred?.Invoke($"Failed to add bonus code: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<string> RedeemBonusCodeAsync(string bonusCode, decimal amount = 0.05m)
+        {
+            if (!IsConnected)
+            {
+                throw new InvalidOperationException("Wallet is not connected");
+            }
+
+            var amountCoins = new Coins(amount);
+
+            try
+            {
+                // Hash the bonus code to a 256-bit value
+                BigInteger bonusCodeHash = HashBonusCode(bonusCode);
+
+                var body = new CellBuilder()
+                    .StoreUInt(REDEEM_BONUS_CODE_OP, 32)
+                    .StoreUInt(bonusCodeHash, 256)
+                    .Build();
+
+                var message = new Message[] {
+                    new Message(
+                        new Address(ContractAddress),
+                        amountCoins,
+                        null,
+                        body
+                    )
+                };
+
+                var request = new SendTransactionRequest(
+                    message,
+                    DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeSeconds()
+                );
+
+                var result = await _tonConnect.SendTransaction(request);
+                return result.Value.Boc.ToString();
+            }
+            catch (Exception ex)
+            {
+                OnErrorOccurred?.Invoke($"Failed to redeem bonus code: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<string> RemoveBonusCodeAsync(string bonusCode, decimal amount = 0.05m)
+        {
+            if (!IsConnected)
+            {
+                throw new InvalidOperationException("Wallet is not connected");
+            }
+
+            var amountCoins = new Coins(amount);
+
+            try
+            {
+                // Hash the bonus code to a 256-bit value
+                BigInteger bonusCodeHash = HashBonusCode(bonusCode);
+
+                var body = new CellBuilder()
+                    .StoreUInt(REMOVE_BONUS_CODE_OP, 32)
+                    .StoreUInt(bonusCodeHash, 256)
+                    .Build();
+
+                var message = new Message[] {
+                    new Message(
+                        new Address(ContractAddress),
+                        amountCoins,
+                        null,
+                        body
+                    )
+                };
+
+                var request = new SendTransactionRequest(
+                    message,
+                    DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeSeconds()
+                );
+
+                var result = await _tonConnect.SendTransaction(request);
+                return result.Value.Boc.ToString();
+            }
+            catch (Exception ex)
+            {
+                OnErrorOccurred?.Invoke($"Failed to remove bonus code: {ex.Message}");
+                throw;
+            }
+        }
+
 
         public async Task<string> SubmitScoreAsync(uint score, string? referralAddress = null, decimal amount = 0.1m)
         {

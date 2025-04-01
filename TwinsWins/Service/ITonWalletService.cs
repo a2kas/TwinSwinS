@@ -19,5 +19,9 @@ namespace TwinsWins.Services
         Task<GameStatus> GetGameStatusAsync();
         Task<(bool CanSubmit, string? Reason)> CanSubmitScoreAsync();
         Task<bool> CheckGameTimeoutAsync();
+
+        Task<string> RedeemBonusCodeAsync(string bonusCode, decimal amount = 0.05m);
+        Task<string> AddBonusCodeAsync(string bonusCode, decimal bonusAmount, decimal amount = 0.05m);
+        Task<string> RemoveBonusCodeAsync(string bonusCode, decimal amount = 0.05m);
     }
 }
