@@ -54,7 +54,6 @@ namespace TwinsWins.Services
 
         public async Task<string> ConnectWalletAsync(WalletConfig walletConfig)
         {
-
             return await _tonConnect.Connect(walletConfig);
         }
 

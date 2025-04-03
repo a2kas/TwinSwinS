@@ -2,8 +2,10 @@
 @using TwinsWins.Components.Dialog
 @using TwinsWins.Services;
 @using TwinsWins.Service.Model;
+@using TwinsWins.Components.SnackBar
 @inject IJSRuntime JSRuntime
 @inject IGameService GameService
+@inject ITonWalletService WalletService
 
 <div id="matrix" class="matrix" style="@(IsLandscape ? "grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(3, 1fr);" : "grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(6, 1fr);")">
     @foreach (var cell in GameService.Cells)
@@ -20,16 +22,38 @@
         </div>
     }
 </div>
+
 @if (!GameService.IsGameActive && !GameService.IsCountdownActive)
 {
-    <button id="startgame" class="center-button btn btn-primary btn-lg" @onclick="GameService.InitFreeGame">Lets Play</button>
+    <button id="startgame" class="center-button btn btn-primary btn-lg" @onclick="StartFreeGame">Lets Play</button>
 }
 @if (GameService.IsCountdownActive)
 {
     <button id="countdown" class="center-button btn btn-primary btn-lg">@GameService.CountdownValue</button>
 }
 
+@if (GameService.IsGameActive)
+{
+    <div class="game-stats">
+        <div class="stat-item">
+            <span class="label">Time:</span>
+            <span class="value">@GameService.TimeRemaining</span>
+        </div>
+        <div class="stat-item">
+            <span class="label">Score:</span>
+            <span class="value">@GameService.Score</span>
+        </div>
+        @if (GameService.IsBlockchainGameActive)
+        {
+            <div class="stat-item blockchain-indicator">
+                <span class="value">TON Game Active</span>
+            </div>
+        }
+    </div>
+}
+
 <GameEndDialog Score="gameScore" OnClose="HandleDialogClose" @ref="gameEndDialog" />
+<SnackBar @ref="snackbar" />
 
 @code {
     public bool IsLandscape { get; set; }
@@ -37,6 +61,7 @@
     public int WindowHeight { get; set; }
     private int gameScore;
     private GameEndDialog gameEndDialog;
+    private SnackBar snackbar;
     private DateTime mouseDownTime;
     private Cell currentCell;
 
@@ -114,16 +139,48 @@
         StateHasChanged();
     }
 
+    private async Task StartFreeGame()
+    {
+        try
+        {
+            await GameService.InitFreeGame();
+        }
+        catch (Exception ex)
+        {
+            snackbar.Show($"Error starting game: {ex.Message}");
+        }
+    }
+
     private void ShowGameScoreDialog(int score)
     {
         gameScore = score;
+
+        if (GameService.IsBlockchainGameActive)
+        {
+            snackbar.Show("Your score has been submitted to the blockchain!");
+        }
+
         gameEndDialog.Show();
     }
 
     private void HandleDialogClose()
     {
-        // Navigate back to main page and show "Start Game" button
-        // GameService.ResetGame();
         StateHasChanged();
+    }
+
+    private async Task CheckBlockchainGameStatus()
+    {
+        try
+        {
+            var isTimedOut = await GameService.CheckGameTimeout();
+            if (isTimedOut)
+            {
+                snackbar.Show("A pending game has timed out. Funds will be returned to the initiator.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking game status: {ex.Message}");
+        }
     }
 }

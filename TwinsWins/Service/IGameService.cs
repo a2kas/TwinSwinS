@@ -12,6 +12,8 @@ namespace TwinsWins.Services
         int TimeRemaining { get; }
         int Score { get; }
         bool ShouldShowImages { get; }
+        bool IsBlockchainGameActive { get; }
+        string CurrentPlayerAddress { get; }
 
         event Action OnGameStateChanged;
         event Action<int> OnGameEnded;
@@ -25,5 +27,7 @@ namespace TwinsWins.Services
         void EndGame();
         Task<bool> CheckForMatch(int firstCellId, int secondCellId);
         Task CellClicked(Cell cell);
+        Task<bool> CheckGameTimeout();
+        Task<GameStatus> GetGameStatus();
     }
 }

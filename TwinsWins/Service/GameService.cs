@@ -21,9 +21,11 @@ namespace TwinsWins.Services
         private readonly IGameLobbyRepository _gameLobbyRepository;
         private readonly IGameTransRepository _gameTransRepository;
         private readonly IUserRepository _userRepository;
+        private readonly ITonWalletService _tonWalletService;
         private readonly IHubContext<GameHub> _hubContext;
         private SynchronizationContext _syncContext;
-        private readonly object _lockObject = new object();
+        private long _currentGameId;
+        private const string DEVELOPER_ADDRESS = "EQB4SrBdve8cDp7x_0pGthk-llNVyCZMdHBiJeWQEii1LFkK";
 
         public List<Cell> Cells { get; private set; } = new List<Cell>();
         public Cell FirstSelectedCell { get; private set; }
@@ -34,15 +36,19 @@ namespace TwinsWins.Services
         public int TimeRemaining { get; private set; }
         public int Score { get; private set; }
         public bool ShouldShowImages => !IsCountdownActive && IsGameActive;
+        public bool IsBlockchainGameActive { get; private set; }
+        public string CurrentPlayerAddress { get; private set; }
 
         public event Action OnGameStateChanged;
         public event Action<int> OnGameEnded;
 
-        public GameService(ImageService imageService,
+        public GameService(
+            ImageService imageService,
             ImageService paidImageService,
             IUserRepository userRepository,
             IGameLobbyRepository gameLobbyRepository,
             IGameTransRepository gameTransRepository,
+            ITonWalletService tonWalletService,
             IHubContext<GameHub> hubContext,
             IJSRuntime jsRuntime)
         {
@@ -51,11 +57,12 @@ namespace TwinsWins.Services
             _gameLobbyRepository = gameLobbyRepository;
             _gameTransRepository = gameTransRepository;
             _userRepository = userRepository;
+            _tonWalletService = tonWalletService;
             _hubContext = hubContext;
             _syncContext = SynchronizationContext.Current;
         }
 
-        public async Task<List<GameLobby>> GetAvailableGames() 
+        public async Task<List<GameLobby>> GetAvailableGames()
         {
             return await _gameLobbyRepository.GetAvailableGames();
         }
@@ -68,6 +75,7 @@ namespace TwinsWins.Services
             Cells = cells;
             IsGameActive = false;
             Score = 0;
+            IsBlockchainGameActive = false;
 
             StartCountdown();
 
@@ -76,68 +84,108 @@ namespace TwinsWins.Services
 
         public async Task<List<Cell>> InitPaidGame(string walletAddress, decimal stake)
         {
-            var user = await _userRepository.GetUserByWalletAddress(walletAddress);
-            if (user == null)
-                throw new Exception("User not found");
-
-            var imagePairs = _paidImageService.GetRandomImagePairs(9);
-            var cells = CreateGameCells(imagePairs);
-
-            var gameBody = new GameBody
+            if (!_tonWalletService.IsConnected || string.IsNullOrEmpty(walletAddress))
             {
-                Cells = cells,
-                ImageIdMap = _imageIdMap
-            };
+                throw new Exception("Wallet not connected");
+            }
 
-            var newGame = new GameLobby
+            try
             {
-                OwnerId = user.Id,
-                Stake = stake,
-                Created = DateTime.UtcNow,
-                Body = JsonConvert.SerializeObject(gameBody)
-            };
 
-            newGame = await _gameLobbyRepository.CreateLobbyGame(newGame);
+                var txnHash = await _tonWalletService.InitializeGameAsync(DEVELOPER_ADDRESS, stake);
 
-            var gameTrans = new GameTransaction
+                var user = await _userRepository.GetUserByWalletAddress(walletAddress);
+                if (user == null)
+                    throw new Exception("User not found");
+
+                var imagePairs = _paidImageService.GetRandomImagePairs(9);
+                var cells = CreateGameCells(imagePairs);
+
+                var gameBody = new GameBody
+                {
+                    Cells = cells,
+                    ImageIdMap = _imageIdMap
+                };
+
+                var newGame = new GameLobby
+                {
+                    OwnerId = user.Id,
+                    Stake = stake,
+                    Created = DateTime.UtcNow,
+                    Body = JsonConvert.SerializeObject(gameBody)
+                };
+
+                newGame = await _gameLobbyRepository.CreateLobbyGame(newGame);
+
+                var gameTrans = new GameTransaction
+                {
+                    Id = newGame.Id,
+                    OwnerId = user.Id,
+                    Stake = stake,
+                    Created = DateTime.UtcNow,
+                    transaction = txnHash
+                };
+
+                await _gameTransRepository.CreateGameTransaction(gameTrans);
+                await _hubContext.Clients.All.SendAsync("ReceiveNewGame", newGame);
+
+                Cells = cells;
+                IsGameActive = false;
+                Score = 0;
+                _currentGameId = newGame.Id;
+                CurrentPlayerAddress = walletAddress;
+                IsBlockchainGameActive = true;
+
+                StartCountdown();
+
+                return cells;
+            }
+            catch (Exception ex)
             {
-                Id = newGame.Id,
-                OwnerId = user.Id,
-                Stake = stake,
-                Created = DateTime.UtcNow
-            };
-
-            await _gameTransRepository.CreateGameTransaction(gameTrans);
-            await _hubContext.Clients.All.SendAsync("ReceiveNewGame", newGame);
-
-            Cells = cells;
-            IsGameActive = false;
-            Score = 0;
-
-            StartCountdown();
-
-            return cells;
+                throw new Exception($"Failed to initialize game on blockchain: {ex.Message}");
+            }
         }
 
         public async Task<List<Cell>> JoinPaidGame(string walletAddress, long gameId)
         {
-            var user = await _userRepository.GetUserByWalletAddress(walletAddress);
-            var game = await _gameLobbyRepository.GetById(gameId);
-            var gameBody = JsonConvert.DeserializeObject<GameBody>(game.Body);
+            if (!_tonWalletService.IsConnected || string.IsNullOrEmpty(walletAddress))
+            {
+                throw new Exception("Wallet not connected");
+            }
 
-            await _gameLobbyRepository.DeleteLobbyGame(gameId);
-            await _gameTransRepository.SetOpponent(gameId,user.Id);
-            await _hubContext.Clients.All.SendAsync("ReceiveDeleteGame", game);
+            try
+            {
+                var user = await _userRepository.GetUserByWalletAddress(walletAddress);
+                var game = await _gameLobbyRepository.GetById(gameId);
+                var gameBody = JsonConvert.DeserializeObject<GameBody>(game.Body);
 
-            _imageIdMap = gameBody.ImageIdMap;
-            Cells = gameBody.Cells;
+                var canSubmit = await _tonWalletService.CanSubmitScoreAsync();
+                if (!canSubmit.CanSubmit)
+                {
+                    throw new Exception($"Cannot join game: {canSubmit.Reason}");
+                }
 
-            IsGameActive = false;
-            Score = 0;
+                await _gameLobbyRepository.DeleteLobbyGame(gameId);
+                await _gameTransRepository.SetOpponent(gameId, user.Id);
+                await _hubContext.Clients.All.SendAsync("ReceiveDeleteGame", game);
 
-            StartCountdown();
+                _imageIdMap = gameBody.ImageIdMap;
+                Cells = gameBody.Cells;
 
-            return Cells;
+                IsGameActive = false;
+                Score = 0;
+                _currentGameId = gameId;
+                CurrentPlayerAddress = walletAddress;
+                IsBlockchainGameActive = true;
+
+                StartCountdown();
+
+                return Cells;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to join game: {ex.Message}");
+            }
         }
 
         private List<Cell> CreateGameCells(List<ImagePair> imagePairs)
@@ -212,12 +260,56 @@ namespace TwinsWins.Services
                 EndGame();
         }
 
-        public void EndGame()
+        public async void EndGame()
         {
             IsGameActive = false;
             _gameTimer?.Stop();
+
+            if (IsBlockchainGameActive && !string.IsNullOrEmpty(CurrentPlayerAddress))
+            {
+                try
+                {
+                    await SubmitScoreToBlockchain();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error submitting score to blockchain: {ex.Message}");
+                }
+            }
+
             OnGameEnded?.Invoke(Score);
             InvokeGameStateChanged();
+        }
+
+        private async Task SubmitScoreToBlockchain()
+        {
+            try
+            {
+                var gameTrans = await _gameTransRepository.GetByGameId(_currentGameId);
+                if (gameTrans == null)
+                {
+                    throw new Exception("Game transaction not found");
+                }
+
+                if (gameTrans.OwnerId == long.Parse(CurrentPlayerAddress))
+                {
+                    await _gameTransRepository.SetOwnerScore(_currentGameId, Score);
+                }
+                else
+                {
+                    await _gameTransRepository.SetOpponentScore(_currentGameId, Score);
+                }
+
+                decimal amount = 0.1m; // Default stake amount
+                var txnHash = await _tonWalletService.SubmitScoreAsync((uint)Score, null, amount);
+
+                 IsBlockchainGameActive = false;
+                CurrentPlayerAddress = null;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to submit score: {ex.Message}");
+            }
         }
 
         public async Task<bool> CheckForMatch(int firstCellId, int secondCellId)
@@ -296,6 +388,16 @@ namespace TwinsWins.Services
             {
                 OnGameStateChanged?.Invoke();
             }
+        }
+
+        public async Task<bool> CheckGameTimeout()
+        {
+            return await _tonWalletService.CheckGameTimeoutAsync();
+        }
+
+        public async Task<GameStatus> GetGameStatus()
+        {
+            return await _tonWalletService.GetGameStatusAsync();
         }
 
         public void Dispose()
