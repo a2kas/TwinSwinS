@@ -173,3 +173,34 @@ a, .btn-link {
 .blue-letter {
     color: rgb(120 185 255);
 }
+
+.game-stats {
+    position: fixed;
+    top: 56px;
+    right: 0;
+    background-color: rgba(0,0,0,0.7);
+    padding: 10px;
+    color: white;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    min-width: 150px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+.label {
+    font-weight: bold;
+}
+
+.blockchain-indicator {
+    background-color: #3498db;
+    padding: 5px;
+    border-radius: 4px;
+    text-align: center;
+    margin-top: 5px;
+}

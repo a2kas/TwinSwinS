@@ -32,26 +32,6 @@
     <button id="countdown" class="center-button btn btn-primary btn-lg">@GameService.CountdownValue</button>
 }
 
-@if (GameService.IsGameActive)
-{
-    <div class="game-stats">
-        <div class="stat-item">
-            <span class="label">Time:</span>
-            <span class="value">@GameService.TimeRemaining</span>
-        </div>
-        <div class="stat-item">
-            <span class="label">Score:</span>
-            <span class="value">@GameService.Score</span>
-        </div>
-        @if (GameService.IsBlockchainGameActive)
-        {
-            <div class="stat-item blockchain-indicator">
-                <span class="value">TON Game Active</span>
-            </div>
-        }
-    </div>
-}
-
 <GameEndDialog Score="gameScore" OnClose="HandleDialogClose" @ref="gameEndDialog" />
 <SnackBar @ref="snackbar" />
 
